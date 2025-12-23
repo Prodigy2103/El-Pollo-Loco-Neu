@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8" />
+    <link rel="icon" href="./assets/img/mexican-man.png">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="controls.css">
+    <title>ElPolloLoco</title>
+    <script src="./js/game.js" type="module"></script>
+</head>
+
+<body>
+    <main>
+        <div id="device-rotate">
+            <div class="phone">
+                <img src="assets/icons/rotatePhone.png" alt="Rotate Device">
+            </div>
+            <div class="message">Turn your Device to play</div>
+        </div>
+
+        <h1>El Pollo Loco</h1>
+
+        <div id="wrapper">
+            <canvas id="canvas" width="720" height="480"></canvas>
+
+            <div id="start-screen" class="d-flex">
+                <button id="play-btn" onclick="startGame()">
+                    <img src="assets/icons/icons8-wiedergabe-eingekreist-100.png" alt="Play button">
+                </button>
+                <button id="legal-btn" onclick="showLegalNotice()">Legal notice</button>
+                
+                <div id="btn-collection">
+                    <div class="all-view">
+                        <img src="assets/icons/icons8-left-arrow-64.png" alt="keyboard left arrow">
+                        <span>Move left</span>
+                    </div>
+                    <div class="all-view">
+                        <img src="assets/icons/icons8-right-arrow-50.png" alt="keyboard right arrow">
+                        <span>Move right</span>
+                    </div>
+                    <div class="desktop-view">
+                        <img src="assets/icons/icons8-space-key-100.png" alt="keyboard space">
+                        <span>Jump</span>
+                    </div>
+                    <div class="mobile-view">
+                        <img src="assets/icons/icons8-up-squared-64.png" alt="button for jump">
+                        <span>Jump</span>
+                    </div>
+                    <div class="desktop-view">
+                        <img src="assets/icons/icons8-d-taste-100.png" alt="keyboard D">
+                        <span>Throw bottle</span>
+                    </div>
+                    <div class="mobile-view">
+                        <img src="assets/icons/icons8-bottle-99.png" alt="button to throw bottle">
+                        <span>Throw bottle</span>
+                    </div>
+                    <div class="mobile-view">
+                        <img src="assets/icons/fullscreen.png" alt="button to fullscreen">
+                        <span>Fullscreen</span>
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="toggleMute(event)" id="sound-btn">
+                <img id="sound-btn-img" src="assets/icons/icons8-sound-on-48.png" alt="Toggle Sound">
+            </button>
+
+            <div id="legal" class="d-none">
+                <button class="close-btn" onclick="closeLegalNotice()"> X </button>
+                <h2>Legal notice</h2>
+                <div class="legal-notice">
+                    <p>Information according to § 5 DDG</p>
+                    <p>Marcus Gühne<br><br>Lazerstraße 3<br>04758 Oschatz</p>
+                    <p><strong>Represented by:</strong><br>Marcus Gühne</p>
+                    <p><strong>Contact:</strong><br>
+                        Phone: +49 1556 6170599<br>
+                        Email: <a href="mailto:info@marcusgühne.de">info@marcusgühne.de</a>
+                    </p>
+                    <p><strong>Consumer Dispute Resolution / Universal Arbitration Board</strong><br>
+                        We do not participate in dispute resolution proceedings before a consumer arbitration board 
+                        and are not obligated to do so.
+                    </p>
+                    <p><strong>Disclaimer:</strong><br>
+                        <strong>Liability for Content</strong><br>
+                        The content of our website has been created with the utmost care. However, we cannot guarantee 
+                        the accuracy, completeness, or timeliness of the content. As a service provider, we are responsible 
+                        for our own content on these pages in accordance with Section 7 Paragraph 1 of the German Data Protection Act (DDG) 
+                        general law. However, according to Sections 8 to 10 of the DDG, we, as a service provider, are 
+                        not obligated to monitor transmitted or stored third-party information or to investigate 
+                        circumstances that indicate illegal activity.
+                    </p>
+                    <p>
+                        <strong>Liability for Links</strong><br>
+                        Our website contains links to external websites of third parties, over whose content we have no influence. 
+                        Therefore, we cannot assume any liability for this external content. The respective provider or operator 
+                        of the linked pages is always responsible for their content.
+                    </p>
+                    <p>
+                        <strong>Copyright</strong><br>
+                        The content and works created by the site operators on these pages are subject to German copyright law. 
+                        Reproduction, processing, distribution, and any kind of use outside the limits of copyright law require 
+                        the written consent of the respective author or creator.
+                    </p>
+                    <p>Imprint from <a href="https://impressum-generator.de" target="_blank" rel="dofollow">Impressum-Generator.de</a>. 
+                        Powered by <a href="https://www.kanzlei-hasselbach.de/" target="_blank" rel="nofollow">Franziska Hasselbach, Bonn</a>.
+                    </p>
+                </div>
+            </div>
+
+            <div id="loading-screen" class="d-none">
+                <p>"It's poultry panic at El Pollo Loco! Help Pepe stop the madness. Stomp on the small chickens to 
+                    defeat them, but take 5 bottles to bring down the giant hen. Show them who's boss!"</p>
+            </div>
+
+            <div id="mobile-btn">
+                <div id="run-key-panel">
+                    <button id="left-btn"><img src="assets/icons/icons8-left-arrow-64.png" alt="left"></button>
+                    <button id="right-btn"><img src="assets/icons/icons8-right-arrow-50.png" alt="right"></button>
+                </div>
+                <button id="fullscreen-btn">
+                    <img src="assets/icons/fullscreen.png" alt="fullscreen">
+                </button>
+                <div id="jump-throw-key-panel">
+                    <button id="jump-btn"><img src="assets/icons/icons8-up-squared-64.png" alt="jump"></button>
+                    <button id="throw-btn"><img src="assets/icons/icons8-bottle-99.png" alt="throw"></button>
+                </div>
+            </div>
+
+            <div id="end-screen" class="d-none">
+                <img id="end-screen-img" src="assets/img/You won, you lost/You win B.png" alt="Game Over">
+                <div>
+                    <button onclick="restartGame()">Restart</button>
+                    <button onclick="backToHome()">Back to home</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        © 2025. Design by <img src="assets/icons/LOGONEU.png" alt="marcus logo">
+    </footer>
+</body>
+</html>
