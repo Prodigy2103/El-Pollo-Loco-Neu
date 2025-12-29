@@ -17,7 +17,7 @@
 }
 @font-face {
     font-family: "BODY";
-    src: url("assets/fonts/El_Abogado_Loco.ttf") format("truetype");
+    src: url("assets/fonts/Vademecum.otf") format("truetype");
 }
 
 .d-flex {
@@ -59,6 +59,15 @@ h2 {
 }
 /* #endregion */
 
+span {
+    font-size: 1.4rem;
+    color: black;
+    filter: drop-shadow(3px 3px 6px white);
+
+    @media (max-width: 700px) {
+        font-size: 1.2rem;
+    }
+}
 /* #region body main wrapper canvas  */
 body {
     font-family: "BODY", "sans-serif";
@@ -193,7 +202,7 @@ body {
         top: 0;
         left: 0;
         flex-direction: column;
-        padding: 10rem;
+        padding: 5rem;
         gap: 3rem;
         justify-content: center;
         background: url("assets/img/5_background/first_half_background.png");
@@ -229,6 +238,19 @@ body {
             p {
                 font-size: 18px;
             }
+        }
+    }
+
+    .final-button {
+        display: flex;
+        justify-content: center;
+        height: 3rem;
+        #final-start-btn {
+            width: 20%;
+            height: 100%;
+            border-radius: 1rem;
+            font-size: 1.5rem;
+            font-family: 'BODY', sans-serif;
         }
     }
     /* #endregion */

@@ -4,86 +4,81 @@ import { AudioHub } from "../js/audio_hub.class.js";
 import { IntervalHub } from "../js/intervalhub.class.js";
 import { GameState } from "../models/game-state.class.js";
 
-let world;
-let canvas;
+let world, canvas;
 let keyboard = new Keyboard();
 window.audioActive = false;
 let isThemeAllowed = false;
 let isToggling = false;
 
-const UI = { start: null, loading: null, end: null, legal: null, audioImg: null, wrapper: null };
+/**
+ * UI elements used for screen management and interaction.
+ * @type {Object<string, HTMLElement|null>}
+ */
+const UI = {
+    start: document.getElementById("start-screen"),
+    loading: document.getElementById("loading-screen"),
+    end: document.getElementById("end-screen"),
+    legal: document.getElementById("legal"),
+    audioImg: document.getElementById("sound-btn-img"),
+    wrapper: document.getElementById("wrapper")
+};
+
+Object.assign(window, { startGame, finalizeStart, toggleMute, restartGame, backToHome, showLegalNotice, closeLegalNotice, toggleFullscreen });
 
 /**
- * Initializes and caches references to key DOM elements for the game UI.
+ * Initiates the first step of the game start process.
+ * Plays the start sound and transitions from the start screen to the loading screen.
  */
-function initUIReferences() {
-    UI.start = document.getElementById("start-screen");
-    UI.loading = document.getElementById("loading-screen");
-    UI.end = document.getElementById("end-screen");
-    UI.legal = document.getElementById("legal");
-    UI.audioImg = document.getElementById("sound-btn-img");
-    UI.wrapper = document.getElementById("wrapper");
+function startGame() {
+    AudioHub.GAME_STARTED.sound.volume = 0.25;
+    AudioHub.playOne(AudioHub.GAME_STARTED);
+    toggleElement(UI.start, false);
+    toggleElement(UI.loading, true, 'flex');
 }
 
 /**
- * Exposes core game functions to the global window object for HTML event access.
+ * Completes the start process after loading.
+ * Initializes the game world, settings, and background music.
  */
-Object.assign(window, { startGame, toggleMute, restartGame, backToHome, showLegalNotice, closeLegalNotice, toggleFullscreen, toggleElement });
-
-/**
- * Resets all global game states, stops active intervals, and clears the world instance.
- */
-function resetGameLogic() {
-    IntervalHub.stopAllIntervals();
-    AudioHub.stopAll();
-    GameState.coinPercentage = 0;
-    GameState.bottlePercentage = 0;
-    world = null;
+function finalizeStart() {
+    toggleElement(UI.loading, false);
+    isThemeAllowed = true;
+    loadSettings(); 
+    initGame();
 }
 
 /**
- * Sets up the canvas, resets game state, and initializes a new World instance.
+ * Initializes the game world and sets up the canvas.
+ * Stops existing intervals to ensure a clean start for the new world instance.
  */
 function initGame() {
     canvas = document.getElementById('canvas');
     if (!canvas) return;
-    resetGameLogic();
+    IntervalHub.stopAllIntervals();
     handleBackgroundMusic();
     world = new World(canvas, keyboard, showEndscreen);
 }
 
 /**
- * Manages the playback of the main background theme based on audio settings.
+ * Manages the background music loop and volume settings.
+ * Only plays if audio is globally active.
  */
 function handleBackgroundMusic() {
     if (window.audioActive && AudioHub.GAME_PLAY) {
         AudioHub.GAME_PLAY.sound.loop = true;
-        AudioHub.playOne(AudioHub.GAME_PLAY, 0.05);
+        AudioHub.GAME_PLAY.sound.volume = 0.05;
+        AudioHub.playOne(AudioHub.GAME_PLAY);
     }
 }
 
 /**
- * Orchestrates the start sequence, including UI transitions and delayed game initialization.
- */
-function startGame() {
-    AudioHub.playOne(AudioHub.GAME_STARTED, 0.05);
-    toggleElement(UI.start, false);
-    toggleElement(UI.loading, true, 'flex');
-    isThemeAllowed = true;
-
-    setTimeout(() => {
-        toggleElement(UI.loading, false);
-        loadSettings();
-        initGame();
-    }, 3500);
-}
-
-/**
- * Displays the game over screen with a result-specific image and sound.
- * @param {string} result - The outcome of the game ('win' or 'lose').
+ * Displays the end screen with the appropriate win or loss message.
+ * Triggered by the World class when the game state reaches an end condition.
+ * @param {'win'|'lose'} result - The final outcome of the game.
  */
 function showEndscreen(result) {
     toggleElement(UI.end, true, 'flex');
+
     const img = document.getElementById("end-screen-img");
     if (img) {
         img.src = result === 'win' ?
@@ -91,29 +86,28 @@ function showEndscreen(result) {
             "assets/img/You won, you lost/You lost b.png";
     }
 
-    AudioHub.stopAll();
-    const endSound = result === 'win' ? AudioHub.GAME_WIN : AudioHub.GAME_LOSE;
-    AudioHub.playOne(endSound, 0.05);
+    AudioHub.playOne(result === 'win' ? AudioHub.GAME_WIN : AudioHub.GAME_LOSE);
 }
 
 /**
- * Helper function to toggle visibility and display styles of DOM elements.
+ * Utility function to show or hide DOM elements using CSS classes.
  * @param {HTMLElement} el - The element to toggle.
- * @param {boolean} show - Whether to show or hide the element.
- * @param {string} [display='block'] - The CSS display value to use when visible.
+ * @param {boolean} show - Whether to show (true) or hide (false) the element.
+ * @param {'block'|'flex'} [display='block'] - The display property to use when showing.
  */
 function toggleElement(el, show, display = 'block') {
     if (!el) return;
-    el.classList.toggle('d-none', !show);
     if (show) {
+        el.classList.remove('d-none');
         el.classList.add(display === 'flex' ? 'd-flex' : 'd-block');
     } else {
+        el.classList.add('d-none');
         el.classList.remove('d-flex', 'd-block');
     }
 }
 
 /**
- * Loads audio settings from local storage and applies them.
+ * Loads audio preferences from local storage and applies them.
  */
 function loadSettings() {
     const saved = localStorage.getItem("audioRef");
@@ -122,7 +116,8 @@ function loadSettings() {
 }
 
 /**
- * Toggles the global audio state and persists the choice in local storage.
+ * Toggles the global mute state and saves the preference.
+ * Includes a small debounce to prevent rapid toggle spamming.
  */
 function toggleMute() {
     if (isToggling) return;
@@ -134,7 +129,7 @@ function toggleMute() {
 }
 
 /**
- * Updates the UI icons and audio playback based on the current audio state.
+ * Updates UI icons and audio playback based on the current global audio state.
  */
 function applyAudioSettings() {
     if (UI.audioImg) {
@@ -148,31 +143,32 @@ function applyAudioSettings() {
 }
 
 /**
- * Restarts the game from the end screen.
+ * Resets the game state and reinits the game world for a new attempt.
  */
 function restartGame() {
     toggleElement(UI.end, false);
-    setTimeout(initGame, 100);
+    IntervalHub.stopAllIntervals();
+    GameState.coinPercentage = 0;
+    GameState.bottlePercentage = 0;
+    world = null;
+    setTimeout(() => initGame(), 100);
 }
 
 /**
- * Returns the user to the main menu and resets the game state.
+ * Performs a hard reload to return to the landing page.
  */
 function backToHome() {
-    resetGameLogic();
-    toggleElement(UI.end, false);
-    toggleElement(UI.start, true, 'flex');
-    isThemeAllowed = false;
-    loadSettings();
+    location.reload();
 }
 
 /** Shows the legal notice overlay. */
 function showLegalNotice() { toggleElement(UI.legal, true, 'flex'); }
+
 /** Hides the legal notice overlay. */
 function closeLegalNotice() { toggleElement(UI.legal, false); }
 
 /**
- * Toggles the browser's fullscreen mode for the game wrapper.
+ * Toggles the wrapper element into browser fullscreen mode.
  */
 function toggleFullscreen() {
     let container = UI.wrapper;
@@ -185,39 +181,38 @@ function toggleFullscreen() {
 }
 
 /**
- * Binds click events to the main menu and control buttons.
+ * Attaches event listeners to UI buttons and interaction elements.
  */
 function bindEvents() {
     document.getElementById('fullscreen-btn')?.addEventListener('click', toggleFullscreen);
     document.getElementById('play-btn')?.addEventListener('click', startGame);
     document.getElementById('sound-btn')?.addEventListener('click', toggleMute);
+    document.getElementById('loading-button')?.addEventListener('click', finalizeStart);
     setupMobileControls();
 }
 
 /**
- * Sets up touch event listeners for mobile navigation and actions.
+ * Sets up touch events for on-screen mobile controls.
+ * Maps touch actions to the virtual keyboard state.
  */
 function setupMobileControls() {
-    const controls = [{ id: 'left-btn', key: 'LEFT' }, { id: 'right-btn', key: 'RIGHT' },
-    { id: 'jump-btn', key: 'SPACE' }, { id: 'throw-btn', key: 'D' }];
+    const controls = [
+        { id: 'left-btn', key: 'LEFT' },
+        { id: 'right-btn', key: 'RIGHT' },
+        { id: 'jump-btn', key: 'SPACE' },
+        { id: 'throw-btn', key: 'D' }
+    ];
     controls.forEach(control => {
         const btn = document.getElementById(control.id);
         if (btn) {
-            ['touchstart', 'touchend'].forEach(type => {
-                btn.addEventListener(type, (e) => {
-                    e.preventDefault();
-                    keyboard[control.key] = (type === 'touchstart');
-                });
-            });
+            btn.addEventListener('touchstart', (e) => { e.preventDefault(); keyboard[control.key] = true; });
+            btn.addEventListener('touchend', (e) => { e.preventDefault(); keyboard[control.key] = false; });
         }
     });
 }
 
-/**
- * Initial entry point after the DOM is fully loaded.
- */
+/** Initial entry point */
 document.addEventListener('DOMContentLoaded', () => {
-    initUIReferences();
+    initUI();
     bindEvents();
-    loadSettings();
 });

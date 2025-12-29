@@ -3,6 +3,11 @@ import { MovableObject } from "./movable_object.class.js";
 import { IntervalHub } from "../js/intervalhub.class.js";
 import { AudioHub } from "../js/audio_hub.class.js";
 
+/**
+ * Represents the main playable character (Pepe).
+ * Manages character-specific animations, movement logic, sound effects, and state transitions.
+ * @extends MovableObject
+ */
 export class Character extends MovableObject {
     x = 100;
     y = 135;
@@ -10,18 +15,20 @@ export class Character extends MovableObject {
     height = 300;
     speed = 6;
     world;
+    idleTimer = 0;
+    isDeadPlaying = false;
 
-    // Optimierte Offsets für präzisere Sprung-Kills
     offset = {
         top: 150,
-        left: 40,
-        bottom: 10, // Erhöht, damit Pepe "tiefer" fallen muss für einen Kill
-        right: 40
+        left: 50,
+        bottom: 15,
+        right: 50
     };
 
-    idleTimer = 0;
-    jumpSoundPlayed = false;
-
+    /**
+     * Creates a Character instance.
+     * Preloads all animation frame sets and sets the initial sprite.
+     */
     constructor() {
         super();
         this.loadImage(Picture.pepePic.idle[0]);
@@ -34,18 +41,17 @@ export class Character extends MovableObject {
     }
 
     /**
-     * Initializes and starts all recurring intervals for the character.
-     * Includes animation frames, physical movement logic, and gravity application.
+     * Starts the asynchronous interval loops for physics, horizontal movement, and visual animations.
      */
     startAnimation() {
-        IntervalHub.startInterval(this.animate, 1000 / 5);
-        IntervalHub.startInterval(this.walkAnimate, 1000 / 60);
-        IntervalHub.startInterval(this.applyGravity, 1000 / 60);
+        IntervalHub.startInterval(this.animate, 1000 / 12); // Visual state updates
+        IntervalHub.startInterval(this.walkAnimate, 1000 / 60); // Physics & Camera
+        IntervalHub.startInterval(this.applyGravity, 1000 / 60); // Gravity calculation
     }
 
     /**
-     * Main animation controller that selects the appropriate image sequence 
-     * based on the character's current state (dead, hurt, jumping, moving, or idle).
+     * Main animation state machine. 
+     * Determines which animation set to play based on current character health and activity.
      */
     animate = () => {
         if (this.isDead()) {
@@ -54,51 +60,59 @@ export class Character extends MovableObject {
             this.handleHurt();
         } else if (this.isAboveGround()) {
             this.handleJumping();
+        } else if (this.isMovingOrAction()) {
+            this.handleMovement();
         } else {
-            this.jumpSoundPlayed = false;
-            if (this.isMovingOrAction()) {
-                this.handleMovement();
-            } else {
-                this.handleIdleState();
-            }
+            this.handleIdleState();
         }
     };
 
     /**
-     * Handles the character's death by playing the death animation, 
-     * stopping all game sounds, and playing the specific death audio.
+     * Handles the death sequence. 
+     * Plays the death animation exactly once and stops all game music to play the death sound.
      */
     handleDeath() {
-        this.playAnimation(Picture.pepePic.dead);
-        AudioHub.stopAll();
-        AudioHub.playOne(AudioHub.PEPE_DEAD, 0.25);
-    }
+        let frames = Picture.pepePic.dead;
 
-    /**
-     * Manages the "hurt" state by resetting the idle timer and playing 
-     * the damage animation and audio.
-     */
-    handleHurt() {
-        this.resetIdleTimer();
-        this.playAnimation(Picture.pepePic.hurt);
-        AudioHub.playOne(AudioHub.PEPE_DAMAGE, 0.25);
-    }
+        if (this.currentImage < frames.length - 1) {
+            let path = frames[this.currentImage];
+            this.img = this.imageCache[path];
+            this.currentImage++;
+        } else {
+            this.img = this.imageCache[frames[frames.length - 1]];
+        }
 
-    /**
-     * Manages the jumping state, ensuring the jump animation plays 
-     * and the jump sound is triggered exactly once per leap.
-     */
-    handleJumping() {
-        this.resetIdleTimer();
-        this.playAnimation(Picture.pepePic.jump);
-        if (!this.jumpSoundPlayed) {
-            AudioHub.playOne(AudioHub.PEPE_JUMP, 0.20);
-            this.jumpSoundPlayed = true;
+        if (!this.isDeadPlaying) {
+            this.isDeadPlaying = true;
+            this.currentImage = 0;
+            this.speed = 0;
+            AudioHub.stopAll();
+            AudioHub.playOne(AudioHub.PEPE_DEAD);
         }
     }
 
     /**
-     * Handles the basic walking animation and resets the idle timer.
+     * Triggers the hurt state, resetting the idle timer and playing the damage sound.
+     */
+    handleHurt() {
+        this.resetIdleTimer();
+        this.playAnimation(Picture.pepePic.hurt);
+        AudioHub.PEPE_DAMAGE.sound.volume = 0.25;
+        AudioHub.playOne(AudioHub.PEPE_DAMAGE);
+    }
+
+    /**
+     * Manages visual frames and sound for jumping.
+     */
+    handleJumping() {
+        this.resetIdleTimer();
+        this.playAnimation(Picture.pepePic.jump);
+        AudioHub.PEPE_JUMP.sound.volume = 0.25;
+        AudioHub.playOne(AudioHub.PEPE_JUMP);
+    }
+
+    /**
+     * Standard movement handler for walking.
      */
     handleMovement() {
         this.resetIdleTimer();
@@ -106,12 +120,12 @@ export class Character extends MovableObject {
     }
 
     /**
-     * Controls the idle behavior. Switches from a standard idle to a 
-     * "long idle" (sleeping) state if no action occurs for a specific duration.
+     * Logic for inactivity. 
+     * Switches to "long idle" (snoring) after 8 seconds of inactivity.
      */
     handleIdleState() {
         this.idleTimer += 150;
-        if (this.idleTimer > 1000) {
+        if (this.idleTimer > 8000) {
             this.playAnimation(Picture.pepePic.longIdle);
             this.playSnoring();
         } else {
@@ -121,32 +135,34 @@ export class Character extends MovableObject {
     }
 
     /**
-     * Checks if any movement keys or action buttons are currently pressed.
-     * @returns {boolean} True if the character is active.
+     * Checks if any movement or action keys are currently pressed.
+     * @returns {boolean} True if character is active.
      */
     isMovingOrAction() {
         return this.world.keyboard.RIGHT || this.world.keyboard.LEFT || this.world.keyboard.D;
     }
 
     /**
-     * Initiates the snoring audio loop if it is not already playing.
+     * Starts the snoring sound loop for long idle states.
      */
     playSnoring() {
         if (AudioHub.PEPE_SNORING.sound.paused) {
+            AudioHub.PEPE_SNORING.sound.volume = 0.25;
+            AudioHub.playOne(AudioHub.PEPE_SNORING);
             AudioHub.PEPE_SNORING.sound.loop = true;
-            AudioHub.playOne(AudioHub.PEPE_SNORING, 0.10);
         }
     }
 
     /**
-     * Pauses the snoring audio loop.
+     * Stops the snoring sound and resets its playback position.
      */
     stopSnoring() {
         AudioHub.PEPE_SNORING.sound.pause();
+        AudioHub.PEPE_SNORING.sound.currentTime = 0;
     }
 
     /**
-     * Resets the idle counter to zero and stops associated idle sounds.
+     * Resets the inactivity tracker to zero and stops idle-specific sounds.
      */
     resetIdleTimer() {
         this.idleTimer = 0;
@@ -154,10 +170,12 @@ export class Character extends MovableObject {
     }
 
     /**
-     * Logic loop for horizontal movement, jumping, and camera tracking.
-     * Runs at a high frequency (60 FPS) for smooth control.
+     * High-frequency logic for horizontal movement, world boundaries, 
+     * jumping, and camera tracking.
      */
     walkAnimate = () => {
+        if (this.isDead()) return;
+
         let canMoveRight = this.world.keyboard.RIGHT && this.x < this.world.level.levelEnd_x;
         let canMoveLeft = this.world.keyboard.LEFT && this.x > 0;
 
@@ -173,8 +191,8 @@ export class Character extends MovableObject {
     };
 
     /**
-     * Updates the character's facing direction and executes the movement.
-     * @param {boolean} isLeft - Direction of movement (true for left, false for right).
+     * Executes the horizontal move and flips the character sprite if necessary.
+     * @param {boolean} isLeft - True if moving left, false if moving right.
      */
     executeMove(isLeft) {
         this.otherDirection = isLeft;
@@ -182,13 +200,14 @@ export class Character extends MovableObject {
     }
 
     /**
-     * Manages the walking/running sound effect based on movement and ground contact.
-     * @param {boolean} isMoving - Whether the character is currently moving horizontally.
+     * Manages the walking/running sound effect playback.
+     * @param {boolean} isMoving - Whether the character is currently walking on ground.
      */
     handleRunSound(isMoving) {
         if (isMoving && !this.isAboveGround()) {
             if (AudioHub.PEPE_RUN.sound.paused) {
-                AudioHub.playOne(AudioHub.PEPE_RUN, 0.05);
+                AudioHub.PEPE_RUN.sound.volume = 0.25;
+                AudioHub.playOne(AudioHub.PEPE_RUN);
             }
         } else {
             AudioHub.PEPE_RUN.sound.pause();

@@ -1,5 +1,7 @@
+/**
+ * Base class for all objects that can be rendered on the canvas.
+ */
 export class DrawableObject {
-
     x = 30;
     y = 135;
     width = 100;
@@ -14,36 +16,27 @@ export class DrawableObject {
         left: 0,
         bottom: 0,
         right: 0
-    }
+    };
 
+    /** @type {number} Attribute für die Hitbox */
     rX;
     rY;
     rWidth;
     rHeight;
 
-    /**
-     * Loads a single image from a given path.
-     * @param {string} path - The URL or local path to the image source.
-     */
     loadImage(path) {
         this.img = new Image();
         this.img.src = path;
     }
 
     /**
-     * Renders the current image onto the provided canvas context.
-     * Updates the collision frame coordinates before drawing.
-     * @param {CanvasRenderingContext2D} ctx - The 2D rendering context of the canvas.
+     * Updates collision attributes and draws the image.
      */
     draw(ctx) {
-        this.getRealFrame();
+        this.getRealFrame(); // Berechnet rX, rY, rWidth, rHeight neu
         ctx.drawImage(this.img, this.x, this.y, this.width, this.height);
     }
 
-    /**
-     * Preloads an array of images into the imageCache.
-     * @param {string[]} arr - Array of image paths to be cached.
-     */
     loadImages(arr) {
         arr.forEach((path) => {
             let img = new Image();
@@ -53,10 +46,7 @@ export class DrawableObject {
     }
 
     /**
-     * Checks if this object is overlapping with another drawable object.
-     * Uses the "Real Frame" (rX, rY, rWidth, rHeight) for precise AABB collision detection.
-     * @param {DrawableObject} mo - The other object to check collision against.
-     * @returns {boolean} True if objects are colliding.
+     * Precise AABB collision detection using attributes.
      */
     isColliding(mo) {
         return this.rX + this.rWidth > mo.rX &&
@@ -66,8 +56,7 @@ export class DrawableObject {
     }
 
     /**
-     * Calculates the "Real Frame" coordinates and dimensions.
-     * Subtracts the offsets from the visual image dimensions to create an accurate collision box.
+     * Updates the "Real Frame" attributes based on current x, y and offsets.
      */
     getRealFrame = () => {
         this.rX = this.x + this.offset.left;

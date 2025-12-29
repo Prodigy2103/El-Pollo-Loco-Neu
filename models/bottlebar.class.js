@@ -9,7 +9,7 @@ export class BottleBar extends Statusbar {
         this.loadImages(Picture.statusBar.bottle);
         this.x = 50;
         this.y = 100;
-        
+
         this.updateBar();
     }
 

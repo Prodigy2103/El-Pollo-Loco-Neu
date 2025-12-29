@@ -3,7 +3,7 @@ import { BaseEnemy } from "./base_enemy.class.js";
 
 export class Smallchicken extends BaseEnemy {
 
-    y = 375; 
+    y = 375;
     width = 50;
     height = 60;
 

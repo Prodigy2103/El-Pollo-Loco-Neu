@@ -1,7 +1,11 @@
 import { DrawableObject } from "./drawable_object.class.js";
 
+/**
+ * Base class for all objects that move or have physical interactions in the game world.
+ * Provides core physics like gravity, collision detection, and health management.
+ * @extends DrawableObject
+ */
 export class MovableObject extends DrawableObject {
-
     speed = 0.15;
     speedY = 0;
     acceleration = 2.5;
@@ -10,30 +14,34 @@ export class MovableObject extends DrawableObject {
     otherDirection = false;
 
     /**
-     * Applies a gravitational force to the object's vertical position.
-     * Decreases vertical speed until the object returns to the ground.
+     * Applies constant gravity to the object.
+     * Decreases the vertical position based on current vertical speed until ground level is reached.
      */
     applyGravity = () => {
         if (this.isAboveGround() || this.speedY > 0) {
             this.y -= this.speedY;
             this.speedY -= this.acceleration;
-        } else {
-            this.speedY = 0; // Das hier ist die wichtigste Zeile!
-            this.y = 135;    // Optional: Pepe exakt auf Bodenhöhe fixieren
         }
+        this.getRealFrame();
     };
 
     /**
      * Checks if the object is currently in the air.
-     * @returns {boolean} True if the y-coordinate is above the ground level.
+     * Throwable objects are always considered in the air.
+     * @returns {boolean} True if the object's y-coordinate is above ground level.
      */
     isAboveGround() {
-        return this.y < 135;
+        if (this.constructor.name === 'ThrowableObject') {
+            return true;
+        } else {
+            return this.y < 135;
+        }
     }
 
     /**
-     * Cycles through an array of image paths to create a frame-by-frame animation.
-     * @param {string[]} array - List of image paths from the image cache.
+     * Plays a sequence of images to create an animation.
+     * Uses modulo to loop through the provided image array.
+     * @param {string[]} array - Array of image paths for the animation.
      */
     playAnimation(array) {
         let i = this.currentImage % array.length;
@@ -42,70 +50,72 @@ export class MovableObject extends DrawableObject {
         this.currentImage++;
     }
 
-    /** Moves the object horizontally to the right based on its speed. */
+    /**
+     * Moves the object to the right by its current speed.
+     */
     moveRight() {
         this.x += this.speed;
     }
 
-    /** Moves the object horizontally to the left based on its speed. */
+    /**
+     * Moves the object to the left by its current speed.
+     */
     moveLeft() {
         this.x -= this.speed;
     }
 
-    /** Sets the vertical velocity to trigger a jump. */
+    /**
+     * Triggers a jump by setting the vertical speed.
+     * Typically called when a jump key is pressed and the object is grounded.
+     */
     jump() {
         this.speedY = 30;
     }
 
     /**
-     * Specialized collision check to determine if an object is being stomped on.
-     * @param {MovableObject} mO - The object to check against (usually an enemy).
-     * @returns {boolean} True if this object is falling onto the top of the other object.
+     * Specialized check for landing on top of another object (e.g., stomping an enemy).
+     * Requires a basic collision, downward movement, and correct vertical alignment.
+     * @param {MovableObject} mO - The object (enemy) to check against.
+     * @returns {boolean} True if the object is falling onto the top of mO.
      */
     isCollidingAbove(mO) {
         const isBasicCollision = this.isColliding(mO);
         const isFalling = this.speedY < 0;
         const characterBottomY = this.rY + this.rHeight;
         const enemyTopY = mO.rY;
-        const isHittingTop = characterBottomY >= enemyTopY && characterBottomY <= enemyTopY + 0;
+
+        // Tolerance range of 60px to ensure the stomp is detected reliably
+        const isHittingTop = characterBottomY >= enemyTopY && characterBottomY <= enemyTopY + 60;
         const isInAir = this.isAboveGround();
+
         return isBasicCollision && isFalling && isInAir && isHittingTop;
     }
 
     /**
-     * Reduces energy and updates the lastHit timestamp.
+     * Reduces the object's energy when hit.
+     * Sets the timestamp for the last hit to manage invincibility frames.
      */
     hit() {
         this.energy -= 20;
-        if (this.energy < 0) {
-            this.energy = 0;
-        }
+        if (this.energy < 0) this.energy = 0;
         this.lastHit = new Date().getTime();
     }
 
     /**
-     * Checks if the object's health has reached zero.
-     * @returns {boolean}
+     * Checks if the object's energy has reached zero.
+     * @returns {boolean} True if energy is 0.
      */
     isDead() {
         return this.energy == 0;
     }
 
     /**
-     * Determines if the object is currently in a "hurt" state based on time elapsed since the last hit.
-     * Used to trigger hurt animations or temporary invincibility.
-     * @returns {boolean} True if less than 0.6 seconds have passed since the last hit.
+     * Checks if the object is currently in a 'hurt' state based on the last hit timestamp.
+     * Used for playing hurt animations and temporary invincibility.
+     * @returns {boolean} True if the time since the last hit is less than 0.25 seconds.
      */
     isHurt() {
-        let timepassed = new Date().getTime() - this.lastHit;
-        timepassed = timepassed / 1000; // Convert to seconds
-        return timepassed < 0.4;
-    }
-
-    isColliding(mo) {
-        return this.x + this.width - this.offset.right > mo.x + mo.offset.left &&
-            this.y + this.height - this.offset.bottom > mo.y + mo.offset.top &&
-            this.x + this.offset.left < mo.x + mo.width - mo.offset.right &&
-            this.y + this.offset.top < mo.y + mo.height - mo.offset.bottom;
+        let timepassed = (new Date().getTime() - this.lastHit) / 1000;
+        return timepassed < 0.25;
     }
 }

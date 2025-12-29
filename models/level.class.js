@@ -26,13 +26,13 @@ export class Level {
 
         this.collectibles = {
             coins: this.createRandomCoins(15),
-            bottles: this.createRandomBottles(8) 
+            bottles: this.createRandomBottles(8)
         };
 
         this.clouds = [new Cloud()];
         this.backgroundObjects = this.createBackgrounds();
     }
-    
+
     /**
      * Creates a repeating set of background layers to cover the entire level length.
      * Alternates between two suffixes to create visual variety in the terrain.
