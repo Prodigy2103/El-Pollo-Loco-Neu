@@ -110,7 +110,7 @@ export class Character extends MovableObject {
         if (!this.isJumpSoundPlayed) {
             AudioHub.PEPE_JUMP.sound.volume = 0.25;
             AudioHub.playOne(AudioHub.PEPE_JUMP);
-            this.isJumpSoundPlayed = true; // Sound blockieren
+            this.isJumpSoundPlayed = true;
         }
     }
 

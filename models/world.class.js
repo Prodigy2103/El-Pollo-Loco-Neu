@@ -55,8 +55,9 @@ export class World {
     }
 
     /**
-     * Injects a reference of this world instance into key entities.
-     */
+      * Injects a reference of this world instance into key entities.
+      * This allows entities to access global properties like the character or keyboard state.
+      */
     setWorld() {
         this.character.world = this;
         if (this.level && this.level.enemies) {
@@ -67,8 +68,8 @@ export class World {
     }
 
     /**
-     * Starts the asynchronous logic loops. 
-     * Uses different frequencies for physics, input, and state checks.
+     * Starts the asynchronous logic loops for the game engine.
+     * Runs physics, collision, and cleanup at 60 FPS, while throttling state checks.
      */
     run() {
         IntervalHub.startInterval(() => {
@@ -77,7 +78,7 @@ export class World {
             this.checkBottleCollisions();
             this.cleanUpThrowableObjects();
         }, 1000 / 60);
-        
+
         // Lower frequency for user input and game state
         IntervalHub.startInterval(() => this.checkThrowObjects(), 200);
         IntervalHub.startInterval(() => this.checkGameState(), 100);
@@ -85,10 +86,11 @@ export class World {
 
     /**
      * Monitors win/loss conditions based on entity energy levels.
+     * Triggers the game ending sequence if the character or boss is defeated.
      */
     checkGameState() {
         if (this.gameEndingStarted) return;
-        
+
         if (this.character.energy <= 0) {
             this.gameEndingStarted = true;
             this.character.handleDeath();
@@ -104,8 +106,9 @@ export class World {
     }
 
     /**
-     * Stops all game loops and triggers the UI transition.
-     * @param {'win'|'lose'} result 
+     * Finalizes the game session.
+     * Stops all active intervals and sounds before invoking the game over callback.
+     * @param {'win'|'lose'} result - The outcome of the game.
      */
     finishGame(result) {
         this.gameEnded = true;
@@ -115,8 +118,8 @@ export class World {
     }
 
     /**
-     * High-frequency check for physical intersections. 
-     * Distinguishes between "Stomping" (kill) and "Hitting" (damage).
+     * High-frequency check for physical intersections between entities.
+     * Distinguishes between jumping on an enemy's head (stomp) or taking damage.
      */
     checkCollisions() {
         this.level.enemies.forEach((enemy) => {
@@ -130,6 +133,10 @@ export class World {
         });
     }
 
+    /**
+     * Processes an enemy defeat when the character lands on top of it.
+     * @param {MovableObject} enemy - The enemy object being stomped.
+     */
     handleStomp(enemy) {
         this.playDeathSound(enemy);
         enemy.energy = 0;
@@ -141,13 +148,17 @@ export class World {
         }, 500);
     }
 
+    /**
+     * Inflicts damage on the character and updates the health status bar.
+     */
     handlePlayerHit() {
-        this.character.hit(); // Internally manages invincibility frames
+        this.character.hit(20); // Internally manages invincibility frames
         this.statusBar.setPercentage(this.character.energy, Picture.statusBar.health);
     }
 
     /**
-     * Master render loop.
+     * Main rendering loop synchronized with the screen's refresh rate.
+     * Clears the canvas and draws all game objects in their current state.
      */
     draw() {
         if (this.gameEnded) return;
@@ -164,6 +175,9 @@ export class World {
         requestAnimationFrame(() => this.draw());
     }
 
+    /**
+     * Renders objects that move relative to the character (enemies, items, etc.).
+     */
     addMovableObjects() {
         this.addObjectsToMap(this.level.backgroundObjects);
         this.addObjectsToMap(this.level.clouds);
@@ -174,6 +188,9 @@ export class World {
         this.addToMap(this.character);
     }
 
+    /**
+     * Renders user interface elements that remain in a fixed screen position.
+     */
     addFixedObjects() {
         this.addToMap(this.statusBar);
         this.addToMap(this.coinBar);
@@ -181,10 +198,18 @@ export class World {
         this.addToMap(this.endbossBar);
     }
 
+    /**
+     * Iterates through an array of objects and draws them on the canvas.
+     * @param {MovableObject[]} objects - Array of drawable entities.
+     */
     addObjectsToMap(objects) {
         objects.forEach((o) => this.addToMap(o));
     }
 
+    /**
+     * Draws a single object, handling horizontal mirroring if necessary.
+     * @param {MovableObject} mO - The object to be drawn.
+     */
     addToMap(mO) {
         if (mO.otherDirection) this.flipImage(mO);
         mO.draw(this.ctx);
@@ -193,21 +218,35 @@ export class World {
         if (mO.drawOffsetFrame) mO.drawOffsetFrame(this.ctx);
     }
 
+    /**
+     * Mirrors the canvas context for objects facing the left direction.
+     * @param {MovableObject} mo - The object whose image is being flipped.
+     */
     flipImage(mo) {
         this.ctx.save();
         this.ctx.scale(-1, 1);
         this.ctx.translate(-mo.width - (mo.x * 2), 0);
     }
 
+    /**
+     * Restores the canvas context to the standard non-mirrored state.
+     * @param {MovableObject} mo - The object whose image was flipped.
+     */
     flipImageBack(mo) {
         this.ctx.restore();
     }
 
+    /**
+     * Checks for collisions with collectible items (coins and bottles).
+     */
     checkCollectables() {
         this.collectCoin();
         this.collectBottle();
     }
 
+    /**
+     * Handles logic for picking up coins and updating the coin bar.
+     */
     collectCoin() {
         this.level.collectibles.coins.forEach((coin, index) => {
             if (this.character.isColliding(coin)) {
@@ -219,6 +258,9 @@ export class World {
         });
     }
 
+    /**
+     * Handles logic for picking up bottles if inventory space is available.
+     */
     collectBottle() {
         if (!this.level?.collectibles?.bottles) return;
         for (let i = this.level.collectibles.bottles.length - 1; i >= 0; i--) {
@@ -232,6 +274,9 @@ export class World {
         }
     }
 
+    /**
+     * Checks for throw input and spawns new ThrowableObjects.
+     */
     checkThrowObjects() {
         let now = new Date().getTime();
         let canThrow = this.keyboard.D && GameState.bottlePercentage > 0 && (now - this.lastThrow) > 400;
@@ -250,6 +295,9 @@ export class World {
         }
     }
 
+    /**
+     * Manages collision detection between flying projectiles and enemies.
+     */
     checkBottleCollisions() {
         this.throwableObject.forEach((bottle) => {
             this.level.enemies.forEach((enemy) => {
@@ -265,17 +313,17 @@ export class World {
     }
 
     /**
-     * Filters out bottles that have finished their splash animation or gone out of bounds.
+     * Synchronizes UI status bars with the current global game state.
      */
-    cleanUpThrowableObjects() {
-        this.throwableObject = this.throwableObject.filter(bottle => !bottle.isFullyRemoved);
-    }
-
     updateBars() {
         this.coinBar.setPercentage(GameState.coinPercentage, Picture.statusBar.coin);
         this.bottleBar.setPercentage(GameState.bottlePercentage, Picture.statusBar.bottle);
     }
 
+    /**
+     * Plays the appropriate death sound based on the type of enemy defeated.
+     * @param {MovableObject} enemy - The enemy whose death sound should be played.
+     */
     playDeathSound(enemy) {
         if (enemy instanceof Endboss) return;
         let sound = enemy.constructor.name === 'Smallchicken' ? AudioHub.LITTLECHICK_DEAD : AudioHub.NORMALCHICK_DEAD;

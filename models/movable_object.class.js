@@ -97,9 +97,7 @@ export class MovableObject extends DrawableObject {
      */
     hit(damage = 20) {
         if (this.isHurt()) return;
-
         this.energy -= damage;
-        if (this.energy < 0) this.energy = 0;
         this.lastHit = new Date().getTime();
     }
 
@@ -118,6 +116,6 @@ export class MovableObject extends DrawableObject {
      */
     isHurt() {
         let timepassed = (new Date().getTime() - this.lastHit) / 1000;
-        return timepassed < 0.25;
+        return timepassed < 0.8;
     }
 }

@@ -14,7 +14,7 @@ export class Endboss extends MovableObject {
         y = 50;
         width = 300;
         height = 400;
-        offset = { top: 100, left: 80, bottom: 80, right: 55 };
+        offset = { top: 100, left: 90, bottom: 80, right: 55 };
         hadContact = false;
 
         /**
@@ -28,10 +28,7 @@ export class Endboss extends MovableObject {
                 this.loadBossImages();
                 this.knockbackActive = 0;
                 this.initialX = this.x;
-
-                /** @type {number} Interval for animation state switching. */
                 this.bossAnimationInterval = IntervalHub.startInterval(() => this.animate(), 150);
-                /** @type {number} High-frequency interval for physics and movement. */
                 this.movementInterval = IntervalHub.startInterval(() => this.updateMovement(), 1000 / 60);
         }
 
@@ -69,9 +66,9 @@ export class Endboss extends MovableObject {
                 let distance = this.getDistanceToPlayer();
                 if (distance < 500) this.hadContact = true;
 
-                if (distance < 60) {
+                if (distance < 70) {
                         this.playAnimation(Picture.bossChick.attack);
-                        this.speed = 0;
+                        this.speed = 3.5;
                 } else if (this.hadContact) {
                         this.playAnimation(Picture.bossChick.walk);
                         this.speed = 2.5;
@@ -96,16 +93,19 @@ export class Endboss extends MovableObject {
          */
         updateMovement() {
                 if (this.isDead() || !this.hadContact) return;
-                let maxBackX = 2600;
+
+                let maxBackX = 2500;
 
                 if (this.isHurt()) {
                         if (this.x < maxBackX) {
-                                this.x += 7;
+                                this.x += 4;
                         }
-                } else if (this.getDistanceToPlayer() > 10) {
-                        this.x -= this.speed;
+                } else {
+                        let distance = this.getDistanceToPlayer();
+                        if (distance > -20) {
+                                this.x -= this.speed;
+                        }
                 }
-
                 this.getRealFrame();
         }
 
@@ -133,7 +133,6 @@ export class Endboss extends MovableObject {
                 this.hadContact = true;
                 this.playAnimation(Picture.bossChick.hurt);
                 this.playBossHurtSound();
-                this.x += 100; // Immediate knockback impulse
                 this.getRealFrame();
                 setTimeout(() => {
                         if (!this.isDead()) this.playAnimation(Picture.bossChick.attack);
