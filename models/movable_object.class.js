@@ -79,13 +79,13 @@ export class MovableObject extends DrawableObject {
      * @returns {boolean} True if the object is falling onto the top of mO.
      */
     isCollidingAbove(mO) {
+        if (mO.constructor.name === 'Endboss') return false;
+
         const isBasicCollision = this.isColliding(mO);
         const isFalling = this.speedY < 0;
         const characterBottomY = this.rY + this.rHeight;
         const enemyTopY = mO.rY;
-
-        // Tolerance range of 60px to ensure the stomp is detected reliably
-        const isHittingTop = characterBottomY >= enemyTopY && characterBottomY <= enemyTopY + 60;
+        const isHittingTop = characterBottomY >= enemyTopY && characterBottomY <= enemyTopY + 40;
         const isInAir = this.isAboveGround();
 
         return isBasicCollision && isFalling && isInAir && isHittingTop;
@@ -95,8 +95,10 @@ export class MovableObject extends DrawableObject {
      * Reduces the object's energy when hit.
      * Sets the timestamp for the last hit to manage invincibility frames.
      */
-    hit() {
-        this.energy -= 20;
+    hit(damage = 20) {
+        if (this.isHurt()) return;
+
+        this.energy -= damage;
         if (this.energy < 0) this.energy = 0;
         this.lastHit = new Date().getTime();
     }

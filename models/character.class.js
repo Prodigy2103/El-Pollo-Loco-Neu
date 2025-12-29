@@ -107,8 +107,11 @@ export class Character extends MovableObject {
     handleJumping() {
         this.resetIdleTimer();
         this.playAnimation(Picture.pepePic.jump);
-        AudioHub.PEPE_JUMP.sound.volume = 0.25;
-        AudioHub.playOne(AudioHub.PEPE_JUMP);
+        if (!this.isJumpSoundPlayed) {
+            AudioHub.PEPE_JUMP.sound.volume = 0.25;
+            AudioHub.playOne(AudioHub.PEPE_JUMP);
+            this.isJumpSoundPlayed = true; // Sound blockieren
+        }
     }
 
     /**
@@ -183,10 +186,14 @@ export class Character extends MovableObject {
         if (canMoveLeft) this.executeMove(true);
 
         this.handleRunSound(canMoveRight || canMoveLeft);
-
         if (this.world.keyboard.SPACE && !this.isAboveGround()) {
             this.jump();
         }
+
+        if (!this.isAboveGround()) {
+            this.isJumpSoundPlayed = false;
+        }
+
         this.world.camera_x = -this.x + 150;
     };
 

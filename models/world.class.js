@@ -17,7 +17,6 @@ import { GameState } from "./game-state.class.js";
  * Orchestrates rendering, collision detection, object management, and game state transitions.
  */
 export class World {
-
     character;
     canvas;
     ctx;
@@ -68,13 +67,19 @@ export class World {
     }
 
     /**
-     * Starts the asynchronous logic loops for the game engine.
+     * Starts the asynchronous logic loops. 
+     * Uses different frequencies for physics, input, and state checks.
      */
     run() {
-        IntervalHub.startInterval(() => this.checkCollisions(), 1000 / 180);
-        IntervalHub.startInterval(() => this.checkCollectables(), 1000 / 60);
+        IntervalHub.startInterval(() => {
+            this.checkCollisions()
+            this.checkCollectables();
+            this.checkBottleCollisions();
+            this.cleanUpThrowableObjects();
+        }, 1000 / 60);
+        
+        // Lower frequency for user input and game state
         IntervalHub.startInterval(() => this.checkThrowObjects(), 200);
-        IntervalHub.startInterval(() => this.checkBottleCollisions(), 1000 / 60);
         IntervalHub.startInterval(() => this.checkGameState(), 100);
     }
 
@@ -83,86 +88,71 @@ export class World {
      */
     checkGameState() {
         if (this.gameEndingStarted) return;
-
-        // Check Pepe Death
+        
         if (this.character.energy <= 0) {
             this.gameEndingStarted = true;
             this.character.handleDeath();
-            setTimeout(() => this.finishGame('lose'), 2000);
-            return; // Wichtig, damit nicht beide Screens triggern
+            setTimeout(() => this.finishGame('lose'), 1000);
+            return;
         }
 
-        // Check Boss Death
         const boss = this.level.enemies.find(e => e instanceof Endboss);
         if (boss && boss.energy <= 0) {
             this.gameEndingStarted = true;
-            // Wir warten 2 Sekunden, damit die Dead-Animation des Bosses zu sehen ist
-            setTimeout(() => this.finishGame('win'), 2000);
-        }
-    }
-
-    finishGame(result) {
-        this.gameEnded = true;
-        IntervalHub.stopAllIntervals(); // Stoppt jetzt erst die Animationen
-        AudioHub.stopAll();
-
-        if (this.onGameOver) {
-            this.onGameOver(result); // Ruft showEndscreen in game.js auf
+            setTimeout(() => this.finishGame('win'), 1500); // Give time for boss death animation
         }
     }
 
     /**
-     * Manages the visual transition to the game over screen.
+     * Stops all game loops and triggers the UI transition.
      * @param {'win'|'lose'} result 
      */
-    handleGameOver(result) {
-        const endScreenImgRef = document.getElementById("end-screen-img");
-        if (typeof toggleElement === 'function') {
-            toggleElement(document.getElementById('end-screen'), true, 'flex');
-        }
-
-        setTimeout(() => {
-            const isWin = result === 'win';
-            const sound = isWin ? AudioHub.GAME_WIN : AudioHub.GAME_LOSE;
-            if (endScreenImgRef) {
-                endScreenImgRef.src = isWin
-                    ? "assets/img/You won, you lost/You win B.png"
-                    : "assets/img/You won, you lost/You lost b.png";
-            }
-            AudioHub.playOne(sound);
-        }, 300);
+    finishGame(result) {
+        this.gameEnded = true;
+        IntervalHub.stopAllIntervals();
+        AudioHub.stopAll();
+        if (this.onGameOver) this.onGameOver(result);
     }
 
     /**
-     * High-frequency check for physical intersections between entities.
+     * High-frequency check for physical intersections. 
+     * Distinguishes between "Stomping" (kill) and "Hitting" (damage).
      */
     checkCollisions() {
         this.level.enemies.forEach((enemy) => {
-            if (this.character.isCollidingAbove(enemy) && !enemy.isDead()) {
-                this.playDeathSound(enemy);
-                enemy.energy = 0;
-                setTimeout(() => {
-                    let index = this.level.enemies.indexOf(enemy);
-                    if (index > -1) this.level.enemies.splice(index, 1);
-                }, 500);
-            } else if (this.character.isColliding(enemy) && !enemy.isDead()) {
-                if (!this.character.isHurt()) {
-                    this.character.hit();
-                    this.statusBar.setPercentage(this.character.energy, Picture.statusBar.health);
-                }
+            if (enemy.isDead()) return;
+
+            if (this.character.isCollidingAbove(enemy)) {
+                this.handleStomp(enemy);
+            } else if (this.character.isColliding(enemy)) {
+                this.handlePlayerHit();
             }
         });
-        this.checkCollectables();
+    }
+
+    handleStomp(enemy) {
+        this.playDeathSound(enemy);
+        enemy.energy = 0;
+        this.character.speedY = 15; // Bounce off the enemy
+
+        setTimeout(() => {
+            let index = this.level.enemies.indexOf(enemy);
+            if (index > -1) this.level.enemies.splice(index, 1);
+        }, 500);
+    }
+
+    handlePlayerHit() {
+        this.character.hit(); // Internally manages invincibility frames
+        this.statusBar.setPercentage(this.character.energy, Picture.statusBar.health);
     }
 
     /**
-     * Master render loop. Executes at the screen refresh rate.
+     * Master render loop.
      */
     draw() {
         if (this.gameEnded) return;
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-        // Camera positioning logic
         let newCameraX = -this.character.x + 100;
         this.camera_x = Math.min(0, newCameraX);
 
@@ -171,13 +161,9 @@ export class World {
         this.ctx.translate(-this.camera_x, 0);
 
         this.addFixedObjects();
-
         requestAnimationFrame(() => this.draw());
     }
 
-    /**
-     * Renders objects that scroll with the game world.
-     */
     addMovableObjects() {
         this.addObjectsToMap(this.level.backgroundObjects);
         this.addObjectsToMap(this.level.clouds);
@@ -188,30 +174,6 @@ export class World {
         this.addToMap(this.character);
     }
 
-    /**
-     * Iterates through an array of objects to draw them.
-     * @param {DrawableObject[]} objects 
-     */
-    addObjectsToMap(objects) {
-        objects.forEach((o) => this.addToMap(o));
-    }
-
-    /**
-     * Handles drawing, including image mirroring for direction changes and debug frames.
-     * @param {MovableObject} mO 
-     */
-    addToMap(mO) {
-        if (mO.otherDirection) this.flipImage(mO);
-        mO.draw(this.ctx);
-        if (mO.otherDirection) this.flipImageBack(mO);
-
-        if (mO.drawFrame) mO.drawFrame(this.ctx);
-        if (mO.drawOffsetFrame) mO.drawOffsetFrame(this.ctx);
-    }
-
-    /**
-     * Renders UI elements that remain stationary (Heads-up Display).
-     */
     addFixedObjects() {
         this.addToMap(this.statusBar);
         this.addToMap(this.coinBar);
@@ -219,38 +181,36 @@ export class World {
         this.addToMap(this.endbossBar);
     }
 
-    /**
-     * Flips the rendering context to draw sprites facing the opposite direction.
-     * @param {MovableObject} mo 
-     */
+    addObjectsToMap(objects) {
+        objects.forEach((o) => this.addToMap(o));
+    }
+
+    addToMap(mO) {
+        if (mO.otherDirection) this.flipImage(mO);
+        mO.draw(this.ctx);
+        if (mO.otherDirection) this.flipImageBack(mO);
+        if (mO.drawFrame) mO.drawFrame(this.ctx);
+        if (mO.drawOffsetFrame) mO.drawOffsetFrame(this.ctx);
+    }
+
     flipImage(mo) {
         this.ctx.save();
         this.ctx.scale(-1, 1);
         this.ctx.translate(-mo.width - (mo.x * 2), 0);
     }
 
-    /**
-     * Restores the rendering context after a flip.
-     */
     flipImageBack(mo) {
         this.ctx.restore();
     }
 
-    /**
-     * Wrapper for all item collection checks.
-     */
     checkCollectables() {
         this.collectCoin();
         this.collectBottle();
     }
 
-    /**
-     * Checks collision with coins and updates the GameState.
-     */
     collectCoin() {
         this.level.collectibles.coins.forEach((coin, index) => {
             if (this.character.isColliding(coin)) {
-                AudioHub.COIN_COLLECTED.sound.volume = 0.25;
                 AudioHub.playOne(AudioHub.COIN_COLLECTED);
                 GameState.coinPercentage += 20;
                 this.level.collectibles.coins.splice(index, 1);
@@ -259,15 +219,11 @@ export class World {
         });
     }
 
-    /**
-     * Checks collision with bottles and updates ammunition inventory.
-     */
     collectBottle() {
         if (!this.level?.collectibles?.bottles) return;
         for (let i = this.level.collectibles.bottles.length - 1; i >= 0; i--) {
             let bottle = this.level.collectibles.bottles[i];
             if (this.character.isColliding(bottle) && Bottle.canBeStored()) {
-                AudioHub.BOTTLE_COLLECTED.sound.volume = 0.25;
                 AudioHub.playOne(AudioHub.BOTTLE_COLLECTED);
                 GameState.bottlePercentage += 20;
                 this.level.collectibles.bottles.splice(i, 1);
@@ -276,33 +232,6 @@ export class World {
         }
     }
 
-    /**
-     * Plays the appropriate death sound based on the enemy type with specific volumes.
-     * @param {Object} enemy 
-     */
-    playDeathSound(enemy) {
-        if (enemy instanceof Endboss) return;
-
-        if (enemy.constructor.name === 'Smallchicken') {
-            AudioHub.LITTLECHICK_DEAD.sound.volume = 0.20;
-            AudioHub.playOne(AudioHub.LITTLECHICK_DEAD);
-        } else {
-            AudioHub.NORMALCHICK_DEAD.sound.volume = 0.25;
-            AudioHub.playOne(AudioHub.NORMALCHICK_DEAD);
-        }
-    }
-
-    /**
-     * Synchronizes UI status bars with the global GameState.
-     */
-    updateBars() {
-        this.coinBar.setPercentage(GameState.coinPercentage, Picture.statusBar.coin);
-        this.bottleBar.setPercentage(GameState.bottlePercentage, Picture.statusBar.bottle);
-    }
-
-    /**
-     * Checks for projectile input and instantiates ThrowableObjects.
-     */
     checkThrowObjects() {
         let now = new Date().getTime();
         let canThrow = this.keyboard.D && GameState.bottlePercentage > 0 && (now - this.lastThrow) > 400;
@@ -313,31 +242,43 @@ export class World {
                 _y: this.character.y + 100,
                 _otherDirection: this.character.otherDirection
             });
-
             this.throwableObject.push(bottle);
             GameState.bottlePercentage -= 20;
             this.updateBars();
-            AudioHub.BREAK_BOTTLE.sound.volume = 0.20;
             AudioHub.playOne(AudioHub.BREAK_BOTTLE);
             this.lastThrow = now;
         }
     }
 
-    /**
-     * Manages collision between active projectiles and enemies.
-     */
     checkBottleCollisions() {
-        this.throwableObject.forEach((bottle, bottleIndex) => {
+        this.throwableObject.forEach((bottle) => {
             this.level.enemies.forEach((enemy) => {
-                if (bottle.isColliding(enemy) && !bottle.hit) {
-                    bottle.hit = true;
+                if (bottle.isColliding(enemy) && !bottle.hit && !enemy.isDead()) {
+                    bottle.splash();
                     enemy.hit(20);
                     if (enemy instanceof Endboss) {
                         this.endbossBar.setPercentage(enemy.energy, Picture.statusBar.endboss);
                     }
-                    setTimeout(() => this.throwableObject.splice(bottleIndex, 1), 500);
                 }
             });
         });
+    }
+
+    /**
+     * Filters out bottles that have finished their splash animation or gone out of bounds.
+     */
+    cleanUpThrowableObjects() {
+        this.throwableObject = this.throwableObject.filter(bottle => !bottle.isFullyRemoved);
+    }
+
+    updateBars() {
+        this.coinBar.setPercentage(GameState.coinPercentage, Picture.statusBar.coin);
+        this.bottleBar.setPercentage(GameState.bottlePercentage, Picture.statusBar.bottle);
+    }
+
+    playDeathSound(enemy) {
+        if (enemy instanceof Endboss) return;
+        let sound = enemy.constructor.name === 'Smallchicken' ? AudioHub.LITTLECHICK_DEAD : AudioHub.NORMALCHICK_DEAD;
+        AudioHub.playOne(sound);
     }
 }

@@ -58,15 +58,20 @@ export class ThrowableObject extends MovableObject {
     }
 
     /**
-     * Transitions the object into the splash state.
-     * Stops horizontal and vertical movement immediately to play the impact animation.
-     */
+    * Triggers the splash sequence with high priority.
+    * Increases animation speed for a snappier visual effect.
+    */
     splash() {
+        if (this.hit) return;
         this.hit = true;
+        this.currentImage = 0;
+
         if (this.movementInterval) {
             IntervalHub.stopInterval(this.movementInterval);
         }
-        this.playAnimation(Picture.bottle.splash);
+
+        IntervalHub.stopInterval(this.animationInterval);
+        this.animationInterval = IntervalHub.startInterval(() => this.animateSplash(), 1000 / 30);
     }
 
     /**
@@ -111,6 +116,19 @@ export class ThrowableObject extends MovableObject {
             this.playAnimation(Picture.bottle.splash);
         } else {
             this.playAnimation(Picture.bottle.rotate);
+        }
+    }
+
+    /**
+ * Specialized animation loop for the splash effect.
+ * Removes the object once the last frame is reached.
+ */
+    animateSplash() {
+        let frames = Picture.bottle.splash;
+        if (this.currentImage < frames.length) {
+            this.playAnimation(frames);
+        } else {
+            this.removeObject(); // Flasche sofort löschen, wenn Animation zu Ende
         }
     }
 }
