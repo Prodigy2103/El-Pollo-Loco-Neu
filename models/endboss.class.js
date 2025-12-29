@@ -5,7 +5,7 @@ import { MovableObject } from "./movable_object.class.js";
 /**
  * Represents the final boss enemy (Boss Chick) with advanced AI.
  * Features proximity-based activation, persistent pursuit logic, 
- * knockback physics when hit, and state-dependent animations.
+ * knockback physics when hit, and a specialized charging attack.
  * @extends MovableObject
  */
 export class Endboss extends MovableObject {
@@ -16,11 +16,14 @@ export class Endboss extends MovableObject {
         height = 400;
         offset = { top: 100, left: 90, bottom: 80, right: 55 };
         hadContact = false;
+        isCharging = false;
+        chargeCooldown = false;
+        chargeSpeed = 25;
 
         /**
-     * Creates an Endboss instance.
-     * Initializes health, preloads animations, and starts logic/movement intervals.
-     */
+         * Creates an Endboss instance.
+         * Initializes health, preloads animations, and starts logic/movement intervals.
+         */
         constructor() {
                 super();
                 this.loadImage(Picture.bossChick.alert[0]);
@@ -28,6 +31,8 @@ export class Endboss extends MovableObject {
                 this.loadBossImages();
                 this.knockbackActive = 0;
                 this.initialX = this.x;
+                this.isJumping = false;
+                this.jumpCooldown = 0;
                 this.bossAnimationInterval = IntervalHub.startInterval(() => this.animate(), 150);
                 this.movementInterval = IntervalHub.startInterval(() => this.updateMovement(), 1000 / 60);
         }
@@ -60,13 +65,17 @@ export class Endboss extends MovableObject {
 
         /**
          * Handles behavior when the boss is healthy.
-         * Manages activation range and switches between walking and attacking based on distance.
+         * Manages activation range and switches between walking, attacking, and charging based on distance.
          */
         handleNormalState() {
                 let distance = this.getDistanceToPlayer();
                 if (distance < 500) this.hadContact = true;
 
-                if (distance < 70) {
+                this.maybeStartCharge(distance);
+
+                if (this.isCharging) {
+                        this.playAnimation(Picture.bossChick.attack);
+                } else if (distance < 70) {
                         this.playAnimation(Picture.bossChick.attack);
                         this.speed = 3.5;
                 } else if (this.hadContact) {
@@ -76,6 +85,32 @@ export class Endboss extends MovableObject {
                         this.playAnimation(Picture.bossChick.alert);
                         this.speed = 0;
                 }
+        }
+
+        /**
+         * Randomly decides whether to trigger a charge attack based on distance and cooldown.
+         * @param {number} distance - The current distance to the player.
+         */
+        maybeStartCharge(distance) {
+                if (this.hadContact && distance < 500 && distance > 100 && !this.chargeCooldown && !this.isCharging) {
+                        if (Math.random() < 0.05) {
+                                this.startCharge();
+                        }
+                }
+        }
+
+        /**
+         * Initiates the charging state and sets timers for duration and cooldown.
+         */
+        startCharge() {
+                this.isCharging = true;
+                this.chargeCooldown = true;
+                setTimeout(() => {
+                        this.isCharging = false;
+                }, 600);
+                setTimeout(() => {
+                        this.chargeCooldown = false;
+                }, 2000);
         }
 
         /**
@@ -89,21 +124,18 @@ export class Endboss extends MovableObject {
 
         /**
          * Handles horizontal movement, including pursuing the player 
-         * and reactive knockback when injured.
+         * and reactive knockback when injured or charging.
          */
         updateMovement() {
                 if (this.isDead() || !this.hadContact) return;
-
                 let maxBackX = 2500;
-
                 if (this.isHurt()) {
-                        if (this.x < maxBackX) {
-                                this.x += 4;
-                        }
+                        if (this.x < maxBackX) this.x += 4;
                 } else {
                         let distance = this.getDistanceToPlayer();
+                        let currentSpeed = this.isCharging ? this.chargeSpeed : this.speed;
                         if (distance > -20) {
-                                this.x -= this.speed;
+                                this.x -= currentSpeed;
                         }
                 }
                 this.getRealFrame();
@@ -127,7 +159,7 @@ export class Endboss extends MovableObject {
 
         /**
          * Sequence for boss taking damage.
-         * Forces activation, applies immediate knockback, and prepares a counter-attack.
+         * Forces activation and prepares a quick counter-animation.
          */
         handleHurtState() {
                 this.hadContact = true;

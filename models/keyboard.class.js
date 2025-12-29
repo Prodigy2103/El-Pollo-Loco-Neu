@@ -18,7 +18,10 @@ export class Keyboard {
         window.addEventListener("keydown", (e) => {
             if (e.key === "ArrowRight") this.RIGHT = true;
             if (e.key === "ArrowLeft") this.LEFT = true;
-            if (e.key === " ") this.SPACE = true;
+            if (e.key === " ") { 
+            e.preventDefault();
+            this.SPACE = true;
+        }
             if (e.key.toLowerCase() === "d") this.D = true;
         });
 

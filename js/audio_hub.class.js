@@ -22,7 +22,7 @@ class GameAudio {
         /** @type {HTMLAudioElement} The actual audio object. */
         this.sound = new Audio(src);
         this.sound.preload = 'auto';
-        
+
         this.sound.addEventListener('canplaythrough', () => {
             this.load = true;
         }, { once: true });
@@ -59,7 +59,7 @@ export class AudioHub {
 
     // --- Game State Sounds ---
     static GAME_STARTED = new GameAudio('assets/sounds/game/gameStart.mp3');
-    static GAME_WIN = new GameAudio('assets/sounds/WinLose/preview.mp3');
+    static GAME_WIN = new GameAudio('assets/sounds/WinLose/preview_PJALaNcT.mp3');
     static GAME_LOSE = new GameAudio('assets/sounds/WinLose/321910__jrc_yt__you-lose.mp3');
     static GAME_PLAY = new GameAudio('assets/sounds/WinLose/high-noon-(spaghetti-western-epic-trailer-music)-made-with-Voicemod.mp3');
 
@@ -70,9 +70,9 @@ export class AudioHub {
      */
     static get allSounds() {
         return [
-            this.PEPE_DAMAGE, this.PEPE_DEAD, this.PEPE_JUMP, this.PEPE_RUN, 
-            this.PEPE_SNORING, this.NORMALCHICK_DEAD, this.LITTLECHICK_DEAD, 
-            this.BOSSCHICK_APPROACH, this.BOTTLE_COLLECTED, this.COIN_COLLECTED, 
+            this.PEPE_DAMAGE, this.PEPE_DEAD, this.PEPE_JUMP, this.PEPE_RUN,
+            this.PEPE_SNORING, this.NORMALCHICK_DEAD, this.LITTLECHICK_DEAD,
+            this.BOSSCHICK_APPROACH, this.BOTTLE_COLLECTED, this.COIN_COLLECTED,
             this.GAME_STARTED, this.BREAK_BOTTLE, this.GAME_WIN, this.GAME_LOSE,
             this.GAME_PLAY
         ];
@@ -83,42 +83,42 @@ export class AudioHub {
      * @function
      */
     static setInitialVolume() {
-        this.allSounds.forEach(ga => {
-            if (ga && ga.sound) ga.sound.volume = this.VOLUME;
+        this.allSounds.forEach(gameAudio => {
+            if (gameAudio && gameAudio.sound) gameAudio.sound.volume = this.VOLUME;
         });
     }
 
     /**
- * Plays a specific GameAudio instance if audio is active.
- * Resets the playback position for non-looping sounds.
- * @param {Object} gameAudio - The GameAudio instance to be played.
- */
-static playOne(gameAudio) {
-    if (!window.audioActive || !gameAudio || !gameAudio.sound) return;
+    * Plays a specific GameAudio instance if audio is active.
+    * Resets the playback position for non-looping sounds.
+    * @param {Object} gameAudio - The GameAudio instance to be played.
+    */
+    static playOne(gameAudio) {
+        if (!window.audioActive || !gameAudio || !gameAudio.sound) return;
 
-    const GLOBAL_VOLUME = 0.05; 
+        const GLOBAL_VOLUME = 0.05;
 
-    gameAudio.sound.volume = GLOBAL_VOLUME;
+        gameAudio.sound.volume = GLOBAL_VOLUME;
 
-    if (!gameAudio.sound.loop) {
-        gameAudio.sound.currentTime = 0;
+        if (!gameAudio.sound.loop) {
+            gameAudio.sound.currentTime = 0;
+        }
+
+        let playPromise = gameAudio.sound.play();
+        if (playPromise !== undefined) {
+            playPromise.catch(() => { });
+        }
     }
-
-    let playPromise = gameAudio.sound.play();
-    if (playPromise !== undefined) {
-        playPromise.catch(() => {});
-    }
-}
 
     /**
      * Stops all sounds immediately and resets their playback position to the beginning.
      * @function
      */
     static stopAll() {
-        this.allSounds.forEach(ga => {
-            if (ga && ga.sound) {
-                ga.sound.pause();
-                ga.sound.currentTime = 0;
+        this.allSounds.forEach(gameAudio => {
+            if (gameAudio && gameAudio.sound) {
+                gameAudio.sound.pause();
+                gameAudio.sound.currentTime = 0;
             }
         });
     }

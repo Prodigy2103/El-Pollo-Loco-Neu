@@ -5,7 +5,6 @@ import { AudioHub } from "../js/audio_hub.class.js";
 
 /**
  * Represents the main playable character (Pepe).
- * Manages character-specific animations, movement logic, sound effects, and state transitions.
  * @extends MovableObject
  */
 export class Character extends MovableObject {
@@ -17,6 +16,7 @@ export class Character extends MovableObject {
     world;
     idleTimer = 0;
     isDeadPlaying = false;
+    isHurtSoundPlayed = false; // New: prevents sound spamming
 
     offset = {
         top: 150,
@@ -25,10 +25,6 @@ export class Character extends MovableObject {
         right: 50
     };
 
-    /**
-     * Creates a Character instance.
-     * Preloads all animation frame sets and sets the initial sprite.
-     */
     constructor() {
         super();
         this.loadImage(Picture.pepePic.idle[0]);
@@ -41,39 +37,67 @@ export class Character extends MovableObject {
     }
 
     /**
-     * Starts the asynchronous interval loops for physics, horizontal movement, and visual animations.
+     * Starts logic loops for animation, movement, and gravity.
      */
     startAnimation() {
-        IntervalHub.startInterval(this.animate, 1000 / 12); // Visual state updates
-        IntervalHub.startInterval(this.walkAnimate, 1000 / 60); // Physics & Camera
-        IntervalHub.startInterval(this.applyGravity, 1000 / 60); // Gravity calculation
+        IntervalHub.startInterval(this.animate, 1000 / 12); 
+        IntervalHub.startInterval(this.walkAnimate, 1000 / 60); 
+        IntervalHub.startInterval(this.applyGravity, 1000 / 60); 
     }
 
     /**
-     * Main animation state machine. 
-     * Determines which animation set to play based on current character health and activity.
+     * Updates the visual state and handles specific state sounds.
      */
     animate = () => {
         if (this.isDead()) {
             this.handleDeath();
         } else if (this.isHurt()) {
             this.handleHurt();
-        } else if (this.isAboveGround()) {
+        } else {
+            this.resetHurtState(); // Reset sound lock when not hurt
+            this.handleNormalAnimations();
+        }
+    };
+
+    /**
+     * Logic for states other than dead or hurt.
+     */
+    handleNormalAnimations() {
+        if (this.isAboveGround()) {
             this.handleJumping();
         } else if (this.isMovingOrAction()) {
             this.handleMovement();
         } else {
             this.handleIdleState();
         }
-    };
+    }
 
     /**
-     * Handles the death sequence. 
-     * Plays the death animation exactly once and stops all game music to play the death sound.
+     * Resets the hurt sound lock so it can trigger on the next hit.
+     */
+    resetHurtState() {
+        this.isHurtSoundPlayed = false;
+    }
+
+    /**
+     * Triggers hurt animation and plays sound once per damage instance.
+     */
+    handleHurt() {
+        this.resetIdleTimer();
+        this.playAnimation(Picture.pepePic.hurt);
+        
+        if (!this.isHurtSoundPlayed) {
+            AudioHub.PEPE_DAMAGE.sound.volume = 0.25;
+            AudioHub.playOne(AudioHub.PEPE_DAMAGE);
+            this.isHurtSoundPlayed = true; 
+        }
+    }
+
+    /**
+     * Handles death animation and sound.
      */
     handleDeath() {
         let frames = Picture.pepePic.dead;
-
         if (this.currentImage < frames.length - 1) {
             let path = frames[this.currentImage];
             this.img = this.imageCache[path];
@@ -92,17 +116,7 @@ export class Character extends MovableObject {
     }
 
     /**
-     * Triggers the hurt state, resetting the idle timer and playing the damage sound.
-     */
-    handleHurt() {
-        this.resetIdleTimer();
-        this.playAnimation(Picture.pepePic.hurt);
-        AudioHub.PEPE_DAMAGE.sound.volume = 0.25;
-        AudioHub.playOne(AudioHub.PEPE_DAMAGE);
-    }
-
-    /**
-     * Manages visual frames and sound for jumping.
+     * Manages jumping animation and ensures sound plays only once per jump.
      */
     handleJumping() {
         this.resetIdleTimer();

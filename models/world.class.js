@@ -76,7 +76,6 @@ export class World {
             this.checkCollisions()
             this.checkCollectables();
             this.checkBottleCollisions();
-            this.cleanUpThrowableObjects();
         }, 1000 / 60);
 
         // Lower frequency for user input and game state

@@ -6,9 +6,9 @@ import { GameState } from "../models/game-state.class.js";
 
 let world, canvas;
 let keyboard = new Keyboard();
-window.audioActive = false;
 let isThemeAllowed = false;
 let isToggling = false;
+window.audioActive = false;
 
 /**
  * UI elements used for screen management and interaction.
@@ -43,7 +43,7 @@ function startGame() {
 function finalizeStart() {
     toggleElement(UI.loading, false);
     isThemeAllowed = true;
-    loadSettings(); 
+    loadSettings();
     initGame();
 }
 
@@ -184,10 +184,26 @@ function toggleFullscreen() {
  * Attaches event listeners to UI buttons and interaction elements.
  */
 function bindEvents() {
-    document.getElementById('fullscreen-btn')?.addEventListener('click', toggleFullscreen);
-    document.getElementById('play-btn')?.addEventListener('click', startGame);
-    document.getElementById('sound-btn')?.addEventListener('click', toggleMute);
-    document.getElementById('loading-button')?.addEventListener('click', finalizeStart);
+    document.getElementById('fullscreen-btn')?.addEventListener('click', (e) => {
+        toggleFullscreen();
+        e.target.blur();
+    });
+
+    document.getElementById('play-btn')?.addEventListener('click', (e) => {
+        startGame();
+        e.target.blur();
+    });
+
+    document.getElementById('sound-btn')?.addEventListener('click', (e) => {
+        toggleMute();
+        e.currentTarget.blur();
+    });
+
+    document.getElementById('loading-button')?.addEventListener('click', (e) => {
+        finalizeStart();
+        e.target.blur();
+    });
+
     setupMobileControls();
 }
 
@@ -213,6 +229,5 @@ function setupMobileControls() {
 
 /** Initial entry point */
 document.addEventListener('DOMContentLoaded', () => {
-    initUI();
     bindEvents();
 });

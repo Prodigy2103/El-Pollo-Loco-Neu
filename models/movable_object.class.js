@@ -95,27 +95,19 @@ export class MovableObject extends DrawableObject {
      * Reduces the object's energy when hit.
      * Sets the timestamp for the last hit to manage invincibility frames.
      */
-    hit(damage = 20) {
+    hit(damage = 5) {
         if (this.isHurt()) return;
         this.energy -= damage;
+        if (this.energy < 0) this.energy = 0;
         this.lastHit = new Date().getTime();
     }
 
-    /**
-     * Checks if the object's energy has reached zero.
-     * @returns {boolean} True if energy is 0.
-     */
     isDead() {
-        return this.energy == 0;
+        return this.energy <= 0;
     }
 
-    /**
-     * Checks if the object is currently in a 'hurt' state based on the last hit timestamp.
-     * Used for playing hurt animations and temporary invincibility.
-     * @returns {boolean} True if the time since the last hit is less than 0.25 seconds.
-     */
     isHurt() {
         let timepassed = (new Date().getTime() - this.lastHit) / 1000;
-        return timepassed < 0.8;
+        return timepassed < 0.5;
     }
 }
